@@ -1,0 +1,57 @@
+﻿Essa é uma excelente ideia de projeto. O escopo do produto é enxuto, o que é perfeito para um trabalho focado em engenharia de infraestrutura, pois permite que você dedique a maior parte do tempo desenhando uma arquitetura robusta, resiliente e bem monitorada na AWS, sem ficar preso em regras de negócio complexas.
+A ideia de gerar um código temporário de 6 dígitos se encaixa perfeitamente em uma arquitetura que combina um backend tradicional com mensageria e componentes serverless.
+Aqui está o planejamento detalhado para estruturar esse projeto nos 5 requisitos solicitados, integrado ao cenário da AWS:
+O Fluxo da Aplicação (Engine)
+1. Aparelho A envia uma URL para o backend.
+2. O Backend gera um código numérico de 6 dígitos, salva no banco de dados com um tempo de expiração (ex: 5 minutos) e envia um evento para uma fila de mensageria (AWS SQS). O código é retornado instantaneamente para o Aparelho A.
+3. Uma função serverless (AWS Lambda) consome a mensagem da fila de forma assíncrona. Ela acessa a URL enviada, extrai o título da página (Web Scraping leve) e atualiza o registro no banco.
+4. Aparelho B digita o código de 6 dígitos. O backend valida a expiração, busca o link e o título processado pelo Lambda, e entrega na tela junto com um QR Code gerado dinamicamente.
+1. Desenho da Arquitetura da Solução
+Para o seu repositório, você deve documentar a arquitetura dividindo-a em camadas. Na AWS, a estrutura recomendada para este problema seria:
+* Camada de Entrada: Um Application Load Balancer (ALB) distribuindo o tráfego para a aplicação.
+* Camada de Computação (Backend): Uma instância EC2 rodando uma distribuição estável como Ubuntu ou Rocky Linux, servindo a API em FastAPI e gerenciando as regras de segurança locais com UFW (liberando apenas as portas necessárias como 80/443 vindas do Load Balancer).
+* Camada de Dados: Um banco AWS RDS PostgreSQL para persistir as URLs, os códigos gerados, timestamps de expiração e os metadados coletados.
+* Camada de Mensageria: Uma fila AWS SQS (Simple Queue Service) padrão, que recebe o ID do link recém-criado para processamento assíncrono.
+* Camada Serverless: Uma função AWS Lambda em Python que é disparada automaticamente por novos eventos na fila SQS para enriquecer os dados da URL.
+2. Código da Aplicação
+Dentro da pasta /app, você estruturará o código em subdiretórios limpos:
+├── app/
+│   ├── frontend/         # HTML/JS simples (pode usar bibliotecas JS locais para gerar o QR Code)
+│   ├── backend/          # API FastAPI
+│   │   ├── main.py       # Endpoints (POST /share, GET /access/{code})
+│   │   ├── database.py   # Conexão SQLAlchemy com o RDS
+│   │   └── queue.py      # Lógica de publicação de mensagens no SQS usando a biblioteca boto3
+│   └── lambda/           # Código do Worker Serverless
+│       └── index.py      # Função executada no AWS Lambda (Scraper do título da URL)
+
+3. Código da Infraestrutura (IaC)
+Como o foco é a infraestrutura, o uso de Terraform na pasta /infra vai valorizar muito o seu projeto. Você pode criar módulos separados:
+* modules/vpc: Configuração de subnets públicas para o Load Balancer e privadas para o Banco de Dados e EC2, garantindo isolamento de rede.
+* modules/compute: Provisionamento da instância EC2, definição do par de chaves SSH e scripts de user_data para instalar o Docker/FastAPI e configurar o firewall básico.
+* modules/database: Provisionamento do RDS PostgreSQL.
+* modules/integration: Criação da fila SQS e da função Lambda, mapeando a permissão necessária (IAM Role) para que o Lambda consiga ler da fila e escrever no banco de dados.
+4. Registros de Logs e Eventos
+A centralização e estruturação dos logs são fundamentais. Toda a sua infraestrutura na AWS deve desaguar no AWS CloudWatch.
+* Na Aplicação (FastAPI e Lambda): Configure o módulo de logging do Python para exportar mensagens em formato JSON estruturado.
+   * Exemplo de log do backend: {"timestamp": "2026-06-22T20:10:00Z", "level": "INFO", "event": "code_generated", "code": "482910", "client_ip": "..."}
+   * Exemplo de log do Lambda: {"timestamp": "2026-06-22T20:10:02Z", "level": "INFO", "event": "url_enriched", "code": "482910", "title": "Google", "execution_time_ms": 150}
+* Na Infraestrutura: O agente do CloudWatch instalado na EC2 coletará esses arquivos de log gerados pelo FastAPI.
+5. Dashboard Real da Aplicação Monitorada
+Para fechar o ciclo de monitoramento dentro da AWS, você pode criar um CloudWatch Dashboard diretamente via código no Terraform (usando o recurso aws_cloudwatch_dashboard). O dashboard deve expor duas visões cruciais:
+1. Métricas de Infraestrutura e Mensageria:
+   * ApproximateNumberOfMessagesVisible (Quantas mensagens estão paradas na fila SQS? Se o número subir, seu Lambda falhou ou está lento).
+   * CPU e Memória da instância EC2 que roda o FastAPI.
+   * Contagem de invocações e taxa de erro da função Lambda.
+2. Métricas de Negócio (Extraídas dos Logs via CloudWatch Logs Insights):
+   * Total de URLs compartilhadas por minuto.
+   * Tempo médio que uma URL leva para ser consumida/acessada pelo segundo dispositivo.
+   * Gráfico de pizza com o percentual de links que expiram sem nunca terem sido acessados.
+Sugestão de Organização do Repositório
+Para manter o monorepo impecável, utilize a seguinte estrutura de pastas:
+├── .github/workflows/    # Opcional: CI/CD para testar o código e validar o Terraform
+├── docs/                 # Desenho da arquitetura (imagens, diagramas e descrição do fluxo)
+├── app/                  # Código fonte da aplicação (Frontend, Backend, Lambda)
+├── infra/                # Arquivos do Terraform (.tf) separados por módulos
+└── monitoring/           # Arquivo JSON de exportação do dashboard e exemplos de logs reais
+
+Com esse desenho, o seu aplicativo continua extremamente simples de programar (um CRUD básico de URLs temporárias), enquanto a sua arquitetura de infraestrutura entrega conceitos avançados de sistemas distribuídos, processamento assíncrono com mensageria, segurança de rede e observabilidade automatizada.
