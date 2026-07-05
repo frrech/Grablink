@@ -36,6 +36,14 @@ resource "aws_security_group" "grablink_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    description = "Acesso HTTP para o Frontend Nginx"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress{
     from_port = 0
     to_port = 0
@@ -52,18 +60,19 @@ resource "aws_instance" "grablink_backend" {
   
   subnet_id = aws_subnet.private_app_a.id
   # Referências ao seu Security Group e Chave SSH (precisam ser declarados no TF)
-  # vpc_security_group_ids = [aws_security_group.grablink_sg.id]
-  # key_name               = "sua-chave-ssh-aws"
+  vpc_security_group_ids = [aws_security_group.grablink_sg.id]
+  key_name               = aws_key_pair.grablink_deployer.key_name
 
   user_data = <<-EOF
               #!/bin/bash
               # Atualiza pacotes e instala repositórios extras
               dnf update -y
-              dnf install -y epel-release
               
               # Instala o UFW e o PostgreSQL client (para testar a conexão com o RDS)
-              dnf install -y ufw postgresql
-              
+              dnf install -y ufw postgresql nginx
+              systemctl enable nginx
+              systemctl start nginx
+
               # Configura o Firewall (UFW) fechando tudo, exceto SSH e a porta do NestJS
               ufw default deny incoming
               ufw default allow outgoing

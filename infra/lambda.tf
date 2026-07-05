@@ -17,15 +17,34 @@ resource "aws_iam_role" "lambda_exec_role" {
   })
 }
 
-# Anexa políticas padrão da AWS para acesso à rede (VPC) e consumo do SQS
-resource "aws_iam_role_policy_attachment" "lambda_vpc_access" {
-  role       = aws_iam_role.lambda_exec_role.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+# Busca a Role padrão de estudante já existente na conta
+data "aws_iam_role" "lab_role" {
+  name = "LabRole" # Mude para "vockey" se o seu painel de estudante usar esse padrão
 }
 
-resource "aws_iam_role_policy_attachment" "lambda_sqs_access" {
-  role       = aws_iam_role.lambda_exec_role.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaSQSQueueExecutionRole"
+# A Função Lambda modificada
+resource "aws_lambda_function" "url_scraper" {
+  filename         = "lambda_function.zip"
+  function_name    = "Grablink-URL-Enricher"
+  
+  # Aqui está o truque: usamos o ARN da Role de estudante em vez de criar uma nova
+  role             = data.aws_iam_role.lab_role.arn 
+  
+  handler          = "scraper.lambda_handler"
+  source_code_hash = data.archive_file.lambda_zip.output_base64sha256
+  runtime          = "python3.12"
+  timeout          = 15
+
+  vpc_config {
+    subnet_ids         = [aws_subnet.private_app_a.id, aws_subnet.private_app_b.id]
+    security_group_ids = [aws_security_group.grablink_sg.id]
+  }
+
+  environment {
+    variables = {
+      API_URL = "http://${aws_instance.grablink_backend.private_ip}:3000"
+    }
+  }
 }
 
 # 3. Empacota o código Python do Lambda
@@ -35,31 +54,7 @@ data "archive_file" "lambda_zip" {
   output_path = "lambda_function.zip"
 }
 
-# 4. A Função Lambda
-resource "aws_lambda_function" "url_scraper" {
-  filename         = "lambda_function.zip"
-  function_name    = "Grablink-URL-Enricher"
-  role             = aws_iam_role.lambda_exec_role.arn
-  handler          = "scraper.lambda_handler"
-  source_code_hash = data.archive_file.lambda_zip.output_base64sha256
-  runtime          = "python3.12"
-  timeout          = 15
-
-  # Coloca o Lambda na subnet privada para acessar o RDS e o NAT Gateway
-  vpc_config {
-    subnet_ids         = [aws_subnet.private_app_a.id, aws_subnet.private_app_b.id]
-    security_group_ids = [aws_security_group.grablink_sg.id]
-  }
-
-  environment {
-    variables = {
-      # Variáveis que o script usará para notificar o backend NestJS
-      API_URL = "http://${aws_instance.grablink_backend.private_ip}:3000"
-    }
-  }
-}
-
-# 5. Mapeamento de Evento: Diz para o SQS disparar o Lambda
+# 4. Mapeamento de Evento: Diz para o SQS disparar o Lambda
 resource "aws_lambda_event_source_mapping" "sqs_to_lambda" {
   event_source_arn = aws_sqs_queue.grablink_queue.arn
   function_name    = aws_lambda_function.url_scraper.arn
