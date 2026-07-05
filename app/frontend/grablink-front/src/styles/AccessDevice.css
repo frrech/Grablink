@@ -1,0 +1,212 @@
+/* Access Device Component */
+.access-device-container {
+  animation: slideIn 0.3s ease-out;
+}
+
+.access-form,
+.share-result {
+  background: white;
+  border-radius: 16px;
+  padding: 2.5rem;
+  box-shadow: var(--shadow-lg);
+}
+
+.access-form h2 {
+  font-size: 1.75rem;
+  margin-bottom: 0.5rem;
+  color: var(--gray-900);
+}
+
+/* Code Input */
+.code-input {
+  width: 100%;
+  padding: 1rem;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 8px;
+  border: 2px solid var(--gray-200);
+  border-radius: var(--border-radius);
+  background: var(--gray-50);
+  color: var(--primary-dark);
+  text-align: center;
+  font-family: 'Monaco', 'Courier New', monospace;
+  transition: all 0.3s ease;
+}
+
+.code-input::placeholder {
+  color: var(--gray-300);
+}
+
+.code-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: white;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.code-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Share Result */
+.share-result {
+  text-align: center;
+}
+
+.share-result h2 {
+  font-size: 1.75rem;
+  margin-bottom: 2rem;
+  color: var(--gray-900);
+}
+
+/* Link Display */
+.link-display {
+  margin: 2rem 0;
+}
+
+.link-title {
+  background: linear-gradient(135deg, #f0f4ff, #f3f1ff);
+  padding: 1.5rem;
+  border-radius: var(--border-radius);
+  border: 2px solid var(--primary-light);
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.title-text {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--gray-900);
+  word-break: break-word;
+}
+
+.loading-title {
+  color: var(--gray-400);
+  font-style: italic;
+}
+
+/* Link URL */
+.link-url {
+  margin: 1.5rem 0;
+}
+
+.link-url .url-link {
+  display: inline-block;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  padding: 1rem 2rem;
+  border-radius: var(--border-radius);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 1.05rem;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.link-url .url-link:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* QR Code Display */
+.qr-code-display {
+  margin: 2rem 0;
+  text-align: center;
+}
+
+.qr-code-image {
+  width: 200px;
+  height: 200px;
+  border: 2px solid var(--gray-200);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  background: white;
+}
+
+.qr-label {
+  margin-top: 0.75rem;
+  color: var(--gray-700);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* Share Metadata */
+.share-metadata {
+  background: var(--gray-50);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  margin: 2rem 0;
+  border-left: 4px solid var(--primary);
+}
+
+.metadata-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.metadata-item:last-child {
+  border-bottom: none;
+}
+
+.metadata-item .label {
+  font-weight: 600;
+  color: var(--gray-700);
+  font-size: 0.95rem;
+}
+
+.metadata-item .value {
+  color: var(--gray-900);
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: 0.95rem;
+}
+
+/* Access Another Button */
+.access-another-btn {
+  margin-top: 2rem;
+  padding: 0.75rem 2rem;
+  background: var(--gray-100);
+  color: var(--gray-700);
+  border: 2px solid var(--gray-300);
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.access-another-btn:hover {
+  background: var(--gray-200);
+  border-color: var(--gray-400);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .access-form,
+  .share-result {
+    padding: 1.5rem;
+  }
+
+  .code-input {
+    font-size: 1.5rem;
+    letter-spacing: 4px;
+    padding: 0.75rem;
+  }
+
+  .qr-code-image {
+    width: 150px;
+    height: 150px;
+  }
+
+  .metadata-item {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .share-result h2 {
+    font-size: 1.5rem;
+  }
+}
