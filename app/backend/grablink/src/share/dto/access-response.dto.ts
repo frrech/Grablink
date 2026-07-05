@@ -2,7 +2,8 @@ export class AccessResponseDto {
   code: string;
   url: string;
   title?: string;
-  expiresAt: Date;
   createdAt: Date;
-  qrCode?: string;
+  expiresAt: Date;
+  accessCount: number;
+  qrCode: string;
 }

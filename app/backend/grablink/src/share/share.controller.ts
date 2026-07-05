@@ -35,13 +35,17 @@ export class ShareController {
   async accessShare(@Param('code') code: string): Promise<AccessResponseDto> {
     const share = await this.shareService.accessShare(code);
 
+    // Generate QR code asynchronously
+    const qrCode = await this.qrCodeService.generateQrCode(share.url);
+
     return {
       code: share.code,
       url: share.url,
       title: share.title,
-      expiresAt: share.expiresAt,
       createdAt: share.createdAt,
-      qrCode: this.qrCodeService.generateQrCode(share.url),
+      expiresAt: share.expiresAt,
+      accessCount: share.accessCount,
+      qrCode,
     };
   }
 }
