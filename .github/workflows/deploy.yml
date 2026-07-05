@@ -75,7 +75,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             # Navega até a pasta do projeto (ajuste para o caminho real na sua EC2)
-            cd /opt/grablink
+            cd ~/Grablink/
             
             # Puxa o código mais recente
             git pull origin main
