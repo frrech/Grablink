@@ -6,9 +6,10 @@ import { ShareController } from './share.controller';
 import { QrCodeService } from './qr-code.service';
 import { ShareScheduler } from './share.scheduler';
 import { Share } from './entities/share.entity';
+import { MessagingModule } from '../messaging/messaging.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Share]), ScheduleModule.forRoot()],
+  imports: [TypeOrmModule.forFeature([Share]), ScheduleModule.forRoot(), MessagingModule],
   controllers: [ShareController],
   providers: [ShareService, QrCodeService, ShareScheduler],
   exports: [ShareService],

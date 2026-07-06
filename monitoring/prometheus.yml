@@ -1,0 +1,14 @@
+global:
+  scrape_interval: 5s # Coleta métricas a cada 5 segundos
+  evaluation_interval: 5s
+
+scrape_configs:
+  # 1. Monitoramento do Backend NestJS
+  - job_name: 'grablink-api'
+    static_configs:
+      - targets: ['api:3000'] # Aponta para o nome do contêiner da API na rede do Docker
+
+  # 2. Auto-monitoramento do Prometheus
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

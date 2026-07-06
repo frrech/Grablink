@@ -3,12 +3,16 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan } from 'typeorm';
 import { CreateShareDto } from './dto/create-share.dto';
 import { Share } from './entities/share.entity';
+import { MessagingService } from '../messaging/messaging.service';
 
 @Injectable()
 export class ShareService {
   private readonly logger = new Logger(ShareService.name);
 
-  constructor(@InjectRepository(Share) private shareRepository: Repository<Share>) {}
+  constructor(
+    @InjectRepository(Share) private shareRepository: Repository<Share>,
+    private readonly messagingService: MessagingService,
+  ) {}
 
   /**
    * Generate a random 6-digit code
@@ -62,8 +66,17 @@ export class ShareService {
       }),
     );
 
-    // TODO: Publish message to SQS for Lambda processing
-    // this.messagingService.publishShareEvent(share);
+    try {
+      await this.messagingService.publishShareEvent({
+        code: saved.code,
+        url: saved.url,
+        createdAt: saved.createdAt.toISOString(),
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Failed to publish share event for code ${saved.code}: ${error instanceof Error ? error.message : error}`,
+      );
+    }
 
     return saved;
   }
