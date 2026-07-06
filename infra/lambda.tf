@@ -19,7 +19,7 @@ resource "aws_iam_role" "lambda_exec_role" {
 
 # Busca a Role padrão de estudante já existente na conta
 data "aws_iam_role" "lab_role" {
-  name = "LabRole" # Mude para "vockey" se o seu painel de estudante usar esse padrão
+  name = "vockey" # Mude para "vockey" se o seu painel de estudante usar esse padrão
 }
 
 # A Função Lambda modificada

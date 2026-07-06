@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  # 1. Camada de Proxy Reverso e Frontend
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./app/frontend/grablink-front/dist:/usr/share/nginx/html # Serve os arquivos do React compilados
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro # Configuração para rotear o tráfego da API
+    depends_on:
+      - api
+
+  # 2. Camada de Aplicação (Backend NestJS)
+  api:
+    build:
+      context: ./app/backend/grablink
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+      - DATABASE_USER=${DATABASE_USER:-grablink}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD:-grablink_password_123}
+      - DATABASE_NAME=grablink_db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+
+  # 3. Camada do Worker Assíncrono (Processa as URLs em background)
+  worker:
+    build:
+      context: ./app/backend/grablink
+      dockerfile: Dockerfile
+    command: npm run start:worker # Assumindo que você crie um script no package.json para iniciar o microserviço
+    environment:
+      - DATABASE_HOST=db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      - rabbitmq
+      - db
+
+  # 4. Camada de Mensageria (RabbitMQ com painel de gerenciamento)
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "15672:15672" # Painel web do RabbitMQ (Acesso via IP_DA_EC2:15672)
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+
+  # 5. Camada de Dados (PostgreSQL)
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=${DATABASE_USER:-grablink}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD:-grablink_password_123}
+      - POSTGRES_DB=grablink_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U grablink -d grablink_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 6. Camada de Monitoramento
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+
+  grafana:
+    image: grafana/grafana-oss
+    ports:
+      - "3001:3000" # Acesso via IP_DA_EC2:3001
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+
+volumes:
+  postgres_data:
