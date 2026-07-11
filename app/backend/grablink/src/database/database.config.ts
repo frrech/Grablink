@@ -17,6 +17,6 @@ export const getDatabaseConfig = (): TypeOrmModuleOptions => {
     migrations: ['dist/database/migrations/*.js'],
     migrationsTableName: 'typeorm_migrations',
   };
-
+  console.log('Database configuration loaded for environment:', config);
   return config;
 };
