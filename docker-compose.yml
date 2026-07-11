@@ -1,33 +1,109 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: grablink_db
-    environment:
-      POSTGRES_USER: grablink
-      POSTGRES_PASSWORD: grablink_password_123
-      POSTGRES_DB: grablink_db
+  # 1. Proxy reverso + Frontend (build multi-stage, tudo dentro do container)
+  nginx:
+    build:
+      context: ./app/frontend/grablink-front
+      dockerfile: Dockerfile
     ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - "80:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  # 2. Backend NestJS
+  api:
+    build:
+      context: ./app/backend/grablink
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - FRONTEND_URL=http://localhost
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+      - DATABASE_USER=${DATABASE_USER:-grablink}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD:-grablink_password_123}
+      - DATABASE_NAME=grablink_db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # 3. Worker assíncrono (consome fila do RabbitMQ)
+  worker:
+    build:
+      context: ./app/backend/grablink
+      dockerfile: Dockerfile
+    command: node dist/worker/main.js
+    environment:
+      - NODE_ENV=production
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+      - DATABASE_USER=${DATABASE_USER:-grablink}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD:-grablink_password_123}
+      - DATABASE_NAME=grablink_db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # 4. Mensageria
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "127.0.0.1:15672:15672"   # painel só acessível via SSH tunnel, não exposto publicamente
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U grablink"]
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: grablink_pgadmin
+  # 5. Banco de dados
+  db:
+    image: postgres:16-alpine
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@grablink.local
-      PGADMIN_DEFAULT_PASSWORD: admin
+      - POSTGRES_USER=${DATABASE_USER:-grablink}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD:-grablink_password_123}
+      - POSTGRES_DB=grablink_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U grablink -d grablink_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # 6. Monitoramento
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana-oss
     ports:
-      - "5050:80"
+      - "127.0.0.1:3001:3000"    # idem: só via SSH tunnel
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
     depends_on:
-      - postgres
+      - prometheus
+    restart: unless-stopped
 
 volumes:
   postgres_data:
